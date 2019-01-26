@@ -39,7 +39,7 @@ var mempool =  {
       if (chunk.length > 0) {
         await db.collection('unconfirmed').insertMany(chunk, { ordered: false }).catch(function(err) {
           // duplicates are ok because they will be ignored
-          if (err.code !== 11000) {
+          if (err.code !== 11000 && err.code !== 17280) {
             console.log('## ERR ', err, items)
             process.exit()
           }
@@ -63,7 +63,7 @@ var block = {
   replace: async function(items, block_index) {
     console.log('Deleting all blocks greater than or equal to', block_index)
     await db.collection('confirmed').deleteMany({
-      block_index: {
+      'blk.i': {
         $gte: block_index
       }
     }).catch(function(err) {
@@ -77,7 +77,7 @@ var block = {
       if (chunk.length > 0) {
         await db.collection('confirmed').insertMany(chunk, { ordered: false }).catch(function(err) {
           // duplicates are ok because they will be ignored
-          if (err.code !== 11000) {
+          if (err.code !== 11000 && err.code !== 17280) {
             console.log('## ERR ', err, items)
             process.exit()
           }
@@ -99,7 +99,7 @@ var block = {
           console.log('..chunk ' + index + ' processed ...')
         } catch (e) {
           // duplicates are ok because they will be ignored
-          if (e.code !== 11000) {
+          if (e.code !== 11000 && e.code !== 17280) {
             console.log('## ERR ', e, items, block_index)
             process.exit()
           }

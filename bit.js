@@ -43,6 +43,7 @@ const request = {
       rpc.getBlockHash(block_index, function(err, res) {
         if (err) {
           console.log('Err = ', err)
+          throw new Error(err)
         } else {
           rpc.getBlock(res.result, function(err, block) {
             resolve(block)
@@ -58,7 +59,8 @@ const request = {
     return new Promise(function(resolve) {
       rpc.getBlockCount(function(err, res) {
         if (err) {
-          console.log(err)
+          console.log('Err = ', err)
+          throw new Error(err)
         } else {
           resolve(res.result)
         }
@@ -170,12 +172,12 @@ const listen = function() {
 
 const sync = async function(type, hash) {
   if (type === 'block') {
-    const lastSynchronized = await Info.checkpoint()
-    const currentHeight = await request.height()
-    console.log('Last Synchronized = ', lastSynchronized)
-    console.log('Current Height = ', currentHeight)
-
     try {
+      const lastSynchronized = await Info.checkpoint()
+      const currentHeight = await request.height()
+      console.log('Last Synchronized = ', lastSynchronized)
+      console.log('Current Height = ', currentHeight)
+
       for(let index=lastSynchronized+1; index<=currentHeight; index++) {
         console.log('RPC BEGIN ' + index, new Date().toString())
         console.time('RPC END ' + index)
@@ -205,19 +207,18 @@ const sync = async function(type, hash) {
         await Db.mempool.sync(items)
       }
 
+      if (lastSynchronized === currentHeight) {
+        console.log('no update')
+        return null
+      } else {
+        console.log('[finished]')
+        return currentHeight
+      }
     } catch (e) {
       console.log('Error', e)
       console.log('Shutting down Bitdb...', new Date().toString())
       await Db.exit()
       process.exit()
-    }
-
-    if (lastSynchronized === currentHeight) {
-      console.log('no update')
-      return null
-    } else {
-      console.log('[finished]')
-      return currentHeight
     }
   } else if (type === 'mempool') {
     queue.add(async function() {
@@ -229,7 +230,7 @@ const sync = async function(type, hash) {
         outsock.send(['mempool', JSON.stringify(content)])
       } catch (e) {
         // duplicates are ok because they will be ignored
-        if (e.code == 11000) {
+        if (e.code == 11000 || e.code == 17280) {
           console.log('Duplicate mempool item: ', content)
         } else {
           console.log('## ERR ', e, content)
